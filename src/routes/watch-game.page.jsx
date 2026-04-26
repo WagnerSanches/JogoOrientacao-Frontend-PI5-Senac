@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
-const API_URL = "https://pi5-api-production.up.railway.app/api/v1/games/mock-state";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 const TEAM1 = ["CLARO", "REY"];
 const TEAM2 = ["KARIN", "BEATRIZ"];
@@ -12,6 +12,23 @@ const LEVEL_LABELS = {
   2: "2º ANO",
   3: "3º ANO",
   4: "4º ANO",
+};
+
+const STATUS_LABELS = {
+  WAITING_PLAYERS: "Aguardando Jogadores",
+  PLAYING: "Em Andamento",
+  PAUSED: "Pausado",
+  FINISHED: "Finalizado",
+};
+
+const PHASE_LABELS = {
+  setup_placement: "Posicionamento",
+  player_turn: "Turno do Jogador",
+};
+
+const WINNER_LABELS = {
+  1: "Time Turing",
+  2: "Time Lovelace",
 };
 
 function Cell({ cell }) {
@@ -54,19 +71,33 @@ function InfoBadge({ label, value, accent }) {
   );
 }
 
+function WinnerBanner({ winnerTeam }) {
+  const isTeam1 = winnerTeam === 1;
+  const label = WINNER_LABELS[winnerTeam];
+  const bg = isTeam1 ? "bg-blue-50 border-blue-300" : "bg-rose-50 border-rose-300";
+  const text = isTeam1 ? "text-blue-700" : "text-rose-700";
+  const accent = isTeam1 ? "text-blue-900" : "text-rose-900";
+
+  return (
+    <div className={`rounded-2xl border-2 px-6 py-5 mb-8 flex items-center gap-4 ${bg}`}>
+      <span className="text-3xl">🏆</span>
+      <div>
+        <p className={`text-xs font-semibold uppercase tracking-wide ${text}`}>Vencedor</p>
+        <p className={`text-xl font-bold ${accent}`}>{label}</p>
+      </div>
+    </div>
+  );
+}
+
 function GameInfo({ game }) {
   const teamLabel = game.turn_team_id === 1 ? "Aliança Turing" : "Lovelace";
   const teamAccent = game.turn_team_id === 1 ? "text-blue-600" : "text-rose-600";
-  const phaseLabel =
-    game.turn_phase === "positioning" ? "Posicionamento" : "Turno do jogador";
+  const phaseLabel = PHASE_LABELS[game.turn_phase] ?? game.turn_phase;
+  const statusLabel = STATUS_LABELS[game.status] ?? game.status;
 
   return (
     <div className="flex flex-wrap gap-3 mb-8">
-      <InfoBadge
-        label="Status"
-        value={game.status}
-        accent="text-green-600"
-      />
+      <InfoBadge label="Status" value={statusLabel} accent="text-green-600" />
       <InfoBadge label="Turno" value={`#${game.turn_number}`} />
       <InfoBadge label="Time jogando" value={teamLabel} accent={teamAccent} />
       <InfoBadge label="Fase" value={phaseLabel} />
@@ -84,7 +115,10 @@ export default function WatchGamePage() {
     try {
       setError(false);
       setLoading(true);
-      const response = await fetch(API_URL, { method: "POST" });
+      const response = await fetch(
+        `${API_BASE_URL}/api/v1/games/${id}/mock-state`,
+        { method: "POST" }
+      );
       if (!response.ok) {
         throw new Error(`Erro ${response.status}`);
       }
@@ -130,6 +164,8 @@ export default function WatchGamePage() {
 
       {game && (
         <>
+          {game.winner_team != null && <WinnerBanner winnerTeam={game.winner_team} />}
+
           <GameInfo game={game} />
 
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
