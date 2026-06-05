@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_TOKEN = import.meta.env.VITE_API_TOKEN;
 
 const TEAM1 = ["CLARO", "REY"];
 const TEAM2 = ["KARIN", "BEATRIZ"];
@@ -109,23 +110,23 @@ export default function WatchGamePage() {
   const { id } = useParams();
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState(null);
 
   async function fetchGame() {
     try {
-      setError(false);
+      setError(null);
       setLoading(true);
-      const response = await fetch(
-        `${API_BASE_URL}/api/v1/games/${id}/mock-state`,
-        { method: "POST" }
-      );
-      if (!response.ok) {
-        throw new Error(`Erro ${response.status}`);
-      }
+      const response = await fetch(`${API_BASE_URL}/api/v1/games/${id}`, {
+        headers: { Authorization: `Bearer ${API_TOKEN}` },
+      });
+      if (response.status === 401) throw new Error("Token inválido ou expirado.");
+      if (response.status === 404) throw new Error("Partida não encontrada.");
+      if (!response.ok) throw new Error(`Erro ao carregar a partida.`);
       const data = await response.json();
+      console.log("Dados da partida:", data);
       setGame(data);
-    } catch {
-      setError(true);
+    } catch (err) {
+      setError(err.message ?? "Erro ao carregar a partida.");
     } finally {
       setLoading(false);
     }
@@ -150,8 +151,7 @@ export default function WatchGamePage() {
   if (error)
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-2">
-        <p className="text-rose-600 font-medium">Erro ao carregar a partida.</p>
-        <p className="text-sm text-gray-400">Tente novamente mais tarde.</p>
+        <p className="text-rose-600 font-medium">{error}</p>
       </div>
     );
 
