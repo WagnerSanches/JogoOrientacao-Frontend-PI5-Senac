@@ -1,19 +1,11 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const API_TOKEN = import.meta.env.VITE_API_TOKEN;
-
-const TEAM1 = ["CLARO", "REY"];
-const TEAM2 = ["KARIN", "BEATRIZ"];
-
-const LEVEL_LABELS = {
-  0: "CALOURO",
-  1: "1º ANO",
-  2: "2º ANO",
-  3: "3º ANO",
-  4: "4º ANO",
-};
+import { useGameSocket } from "@/hooks/useGameSocket.js";
+import { SpectatorRegisterForm } from "@/components/spectator-register-form.jsx";
+import { FinishedGameView } from "@/components/finished-game-view.jsx";
+import { Cell } from "@/components/cell.jsx";
+import { useGameContext } from "@/context/game-context.jsx";
+import { getGame } from "@/lib/games-api.js";
 
 const STATUS_LABELS = {
   WAITING_PLAYERS: "Aguardando Jogadores",
@@ -31,35 +23,6 @@ const WINNER_LABELS = {
   1: "Time Turing",
   2: "Time Lovelace",
 };
-
-function Cell({ cell }) {
-  const hasProfessor = Boolean(cell.professor);
-  const isTeam1 = TEAM1.includes(cell.professor);
-  const isTeam2 = TEAM2.includes(cell.professor);
-
-  const cellBg = isTeam1
-    ? "bg-blue-400 border-blue-500 shadow-blue-100"
-    : isTeam2
-    ? "bg-rose-400 border-rose-500 shadow-rose-100"
-    : "bg-white border-gray-200";
-
-  const levelColor = hasProfessor ? "text-white/80" : "text-gray-400";
-
-  return (
-    <div
-      className={`relative flex flex-col items-center justify-center rounded-xl border-2 aspect-square shadow-sm transition-all ${cellBg}`}
-    >
-      <span className={`text-[10px] font-semibold tracking-wide uppercase ${levelColor}`}>
-        {LEVEL_LABELS[cell.level] ?? `Nv ${cell.level}`}
-      </span>
-      {hasProfessor && (
-        <span className="mt-1 px-2 py-0.5 bg-white/20 rounded-full text-white text-[11px] font-bold tracking-wide">
-          {cell.professor}
-        </span>
-      )}
-    </div>
-  );
-}
 
 function InfoBadge({ label, value, accent }) {
   return (
@@ -90,6 +53,20 @@ function WinnerBanner({ winnerTeam }) {
   );
 }
 
+function ConnectionBadge({ connected }) {
+  return connected ? (
+    <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-green-100 text-green-700">
+      <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
+      Ao vivo
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full bg-red-100 text-red-700">
+      <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+      Desconectado
+    </span>
+  );
+}
+
 function GameInfo({ game }) {
   const teamLabel = game.turn_team_id === 1 ? "Aliança Turing" : "Lovelace";
   const teamAccent = game.turn_team_id === 1 ? "text-blue-600" : "text-rose-600";
@@ -107,42 +84,58 @@ function GameInfo({ game }) {
 }
 
 export default function WatchGamePage() {
-  const { id } = useParams();
+  const { id: gameId } = useParams();
   const [game, setGame] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { getSpectatorToken } = useGameContext();
+  const spectatorToken = getSpectatorToken(gameId);
+
+  // Don't open a WebSocket for finished games
+  const effectiveSpectatorToken =
+    game?.status === "FINISHED" ? null : spectatorToken;
+  const { connected, gameState } = useGameSocket(gameId, effectiveSpectatorToken);
+  const displayGame = gameState ?? game;
 
   async function fetchGame() {
     try {
       setError(null);
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/v1/games/${id}`, {
-        headers: { Authorization: `Bearer ${API_TOKEN}` },
-      });
-      if (response.status === 401) throw new Error("Token inválido ou expirado.");
-      if (response.status === 404) throw new Error("Partida não encontrada.");
-      if (!response.ok) throw new Error(`Erro ao carregar a partida.`);
-      const data = await response.json();
+      const data = await getGame(gameId);
       console.log("Dados da partida:", data);
       setGame(data);
     } catch (err) {
-      setError(err.message ?? "Erro ao carregar a partida.");
+      console.error("Erro ao carregar partida:", err.status, err.body);
+      if (err.status === 401) setError("Token inválido ou expirado.");
+      else if (err.status === 404) setError("Partida não encontrada.");
+      else setError(err.message ?? "Erro ao carregar a partida.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (!id) return;
+    if (!gameId) return;
     fetchGame();
-  }, [id]);
+  }, [gameId]);
 
   if (loading)
     return (
       <div className="flex items-center justify-center py-32 text-gray-400 gap-2">
         <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+          <circle
+            className="opacity-25"
+            cx="12"
+            cy="12"
+            r="10"
+            stroke="currentColor"
+            strokeWidth="4"
+          />
+          <path
+            className="opacity-75"
+            fill="currentColor"
+            d="M4 12a8 8 0 018-8v8H4z"
+          />
         </svg>
         <span className="text-sm">Carregando partida...</span>
       </div>
@@ -155,18 +148,28 @@ export default function WatchGamePage() {
       </div>
     );
 
+  if (game?.status === "FINISHED") return <FinishedGameView game={game} />;
+
+  if (!spectatorToken)
+    return <SpectatorRegisterForm gameId={gameId} onSuccess={() => {}} />;
+
   return (
     <div className="max-w-2xl mx-auto px-6 py-10">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Partida</h1>
-        <p className="text-xs text-gray-400 mt-1 font-mono">{id}</p>
+        <div className="flex items-center gap-3 mb-1">
+          <h1 className="text-2xl font-bold text-gray-900">Partida</h1>
+          <ConnectionBadge connected={connected} />
+        </div>
+        <p className="text-xs text-gray-400 font-mono">{gameId}</p>
       </div>
 
-      {game && (
+      {displayGame && (
         <>
-          {game.winner_team != null && <WinnerBanner winnerTeam={game.winner_team} />}
+          {displayGame.winner_team != null && (
+            <WinnerBanner winnerTeam={displayGame.winner_team} />
+          )}
 
-          <GameInfo game={game} />
+          <GameInfo game={displayGame} />
 
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
             <div className="flex items-center gap-4 mb-4 text-xs font-medium text-gray-500">
@@ -185,7 +188,7 @@ export default function WatchGamePage() {
             </div>
 
             <div className="grid grid-cols-5 gap-2">
-              {game.board.map((row, rowIdx) =>
+              {displayGame.board.map((row, rowIdx) =>
                 row.map((cell, colIdx) => (
                   <Cell key={`${rowIdx}-${colIdx}`} cell={cell} />
                 ))

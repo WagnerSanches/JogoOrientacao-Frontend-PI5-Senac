@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-const API_TOKEN = import.meta.env.VITE_API_TOKEN;
+import { listGames } from "@/lib/games-api.js";
 
 const STATUS_LABELS = {
   WAITING_PLAYERS: "Aguardando Jogadores",
@@ -56,7 +54,7 @@ function GameCard({ game }) {
           to={`/watch/${game.id}`}
           className="shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors"
         >
-          Assistir →
+          {game.status === "FINISHED" ? "Ver Detalhes" : "Assistir"} →
         </Link>
       </div>
     </div>
@@ -73,15 +71,10 @@ export default function WatchPage() {
     try {
       setError(false);
       setLoading(true);
-      const url = new URL(`${API_BASE_URL}/api/v1/games`);
-      if (statusFilter) url.searchParams.set("status", statusFilter);
-      const response = await fetch(url.toString(), {
-        headers: { Authorization: `Bearer ${API_TOKEN}` },
-      });
-      if (!response.ok) throw new Error(`Erro ${response.status}`);
-      const data = await response.json();
+      const data = await listGames({ status: statusFilter });
       setGames(Array.isArray(data) ? data : data.games ?? []);
-    } catch {
+    } catch (err) {
+      console.error("Erro ao carregar partidas:", err.status, err.body);
       setError(true);
     } finally {
       setLoading(false);
@@ -94,11 +87,19 @@ export default function WatchPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-10">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Partidas</h1>
-        <p className="text-gray-500 mt-1 text-sm">
-          Acompanhe as partidas em andamento em tempo real.
-        </p>
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Partidas</h1>
+          <p className="text-gray-500 mt-1 text-sm">
+            Acompanhe as partidas em andamento em tempo real.
+          </p>
+        </div>
+        <Link
+          to="/games/new"
+          className="shrink-0 px-4 py-2 rounded-lg bg-green-600 text-white text-sm font-semibold hover:bg-green-700 transition-colors"
+        >
+          + Criar Partida
+        </Link>
       </div>
 
       <div className="flex gap-2 flex-wrap mb-6">
