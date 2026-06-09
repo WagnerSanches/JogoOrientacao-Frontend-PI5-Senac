@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { listGames } from "@/lib/games-api.js";
+import { useGameContext } from "@/context/game-context.jsx";
 
 const STATUS_LABELS = {
   WAITING_PLAYERS: "Aguardando Jogadores",
@@ -62,17 +63,34 @@ function GameCard({ game }) {
 }
 
 export default function WatchPage() {
+  const { player } = useGameContext();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [activeFilter, setActiveFilter] = useState("");
+  const [onlyMyGames, setOnlyMyGames] = useState(
+    () => localStorage.getItem("only_my_games") === "true"
+  );
 
-  async function fetchGames(statusFilter) {
+  useEffect(() => {
+    localStorage.setItem("only_my_games", String(onlyMyGames));
+  }, [onlyMyGames]);
+
+  async function fetchGames(statusFilter, myGames) {
     try {
       setError(false);
       setLoading(true);
-      const data = await listGames({ status: statusFilter });
-      setGames(Array.isArray(data) ? data : data.games ?? []);
+      const filters = {};
+      if (statusFilter) filters.status = statusFilter;
+      if (myGames && player?.id) filters.player_id = player.id;
+      const data = await listGames(filters);
+      console.log("Resposta da API:", data);
+      console.log("Items:", data?.items);
+      if (data?.items?.length > 0) {
+        console.log("Primeiro item:", data.items[0]);
+        console.log("Campos disponíveis:", Object.keys(data.items[0]));
+      }
+      setGames(data?.items ?? []);
     } catch (err) {
       console.error("Erro ao carregar partidas:", err.status, err.body);
       setError(true);
@@ -82,8 +100,8 @@ export default function WatchPage() {
   }
 
   useEffect(() => {
-    fetchGames(activeFilter);
-  }, [activeFilter]);
+    fetchGames(activeFilter, onlyMyGames);
+  }, [activeFilter, onlyMyGames]);
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-10">
@@ -102,7 +120,7 @@ export default function WatchPage() {
         </Link>
       </div>
 
-      <div className="flex gap-2 flex-wrap mb-6">
+      <div className="flex flex-wrap items-center gap-2 mb-6">
         {FILTERS.map((f) => (
           <button
             key={f.value}
@@ -116,6 +134,17 @@ export default function WatchPage() {
             {f.label}
           </button>
         ))}
+        {player?.id && (
+          <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-600 ml-2 select-none">
+            <input
+              type="checkbox"
+              checked={onlyMyGames}
+              onChange={(e) => setOnlyMyGames(e.target.checked)}
+              className="w-4 h-4 accent-green-500"
+            />
+            Apenas minhas partidas
+          </label>
+        )}
       </div>
 
       {loading && (
