@@ -1,13 +1,34 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSpectator } from "@/lib/games-api.js";
 import { useGameContext } from "@/context/game-context.jsx";
 import { spectatorRegisterSchema } from "@/lib/schemas.js";
 
+const SPECTATOR_PROFILE_KEY = "spectator_profile";
+
+export function getSpectatorProfile() {
+  try {
+    return JSON.parse(localStorage.getItem(SPECTATOR_PROFILE_KEY) || "null");
+  } catch {
+    return null;
+  }
+}
+
+export function saveSpectatorProfile(name, avatar) {
+  localStorage.setItem(SPECTATOR_PROFILE_KEY, JSON.stringify({ name, avatar }));
+}
+
+export function clearSpectatorProfile() {
+  localStorage.removeItem(SPECTATOR_PROFILE_KEY);
+}
+
 export function SpectatorRegisterForm({ gameId, onSuccess }) {
   const { setSpectatorForGame } = useGameContext();
   const [apiError, setApiError] = useState(null);
+  const [autoRegFailed, setAutoRegFailed] = useState(false);
+
+  const savedProfile = getSpectatorProfile();
 
   const {
     register,
@@ -16,10 +37,30 @@ export function SpectatorRegisterForm({ gameId, onSuccess }) {
   } = useForm({
     resolver: zodResolver(spectatorRegisterSchema),
     defaultValues: {
-      spectator_name: "",
-      spectator_avatar: "",
+      spectator_name: savedProfile?.name ?? "",
+      spectator_avatar: savedProfile?.avatar ?? "",
     },
   });
+
+  useEffect(() => {
+    if (savedProfile?.name) {
+      handleAutoRegister(savedProfile.name, savedProfile.avatar);
+    }
+  }, []);
+
+  async function handleAutoRegister(name, avatar) {
+    try {
+      const data = await registerSpectator(gameId, {
+        spectator_name: name,
+        ...(avatar ? { spectator_avatar: avatar } : {}),
+      });
+      setSpectatorForGame(gameId, data);
+      onSuccess?.(data);
+    } catch (err) {
+      console.error("Erro ao auto-registrar espectador:", err);
+      setAutoRegFailed(true);
+    }
+  }
 
   async function onSubmit(data) {
     setApiError(null);
@@ -28,17 +69,31 @@ export function SpectatorRegisterForm({ gameId, onSuccess }) {
         Object.entries(data).filter(([, v]) => v !== "")
       );
       const response = await registerSpectator(gameId, cleanData);
-      console.log("Espectador registrado:", response);
+      saveSpectatorProfile(data.spectator_name, data.spectator_avatar);
       setSpectatorForGame(gameId, response);
       onSuccess?.(response);
     } catch (err) {
       console.error("Erro ao registrar espectador:", err.status, err.body);
-      setApiError(err.message ?? "Erro ao registrar espectador.");
+      setApiError(err.body?.detail || err.message || "Erro ao registrar espectador.");
     }
   }
 
   const inputCls =
     "w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-300 bg-white";
+
+  // Tem perfil salvo e ainda não falhou — mostra tela de auto-registro
+  if (savedProfile?.name && !autoRegFailed) {
+    return (
+      <div className="min-h-[calc(100vh-56px)] flex items-center justify-center px-6 py-12 bg-gray-50">
+        <div className="text-center">
+          <div className="text-3xl mb-3">👁️</div>
+          <p className="text-gray-600 text-sm">
+            Conectando como <span className="font-semibold">{savedProfile.name}</span>…
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-56px)] flex items-center justify-center px-6 py-12 bg-gray-50">

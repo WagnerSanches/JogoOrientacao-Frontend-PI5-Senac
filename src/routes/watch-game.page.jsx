@@ -4,6 +4,7 @@ import { useGameSocket } from "@/hooks/useGameSocket.js";
 import { SpectatorRegisterForm } from "@/components/spectator-register-form.jsx";
 import { FinishedGameView } from "@/components/finished-game-view.jsx";
 import { Cell } from "@/components/cell.jsx";
+import { PlayerAvatar } from "@/components/player-avatar.jsx";
 import { useGameContext } from "@/context/game-context.jsx";
 import { getGame } from "@/lib/games-api.js";
 
@@ -85,7 +86,7 @@ function GameInfo({ game }) {
 
 export default function WatchGamePage() {
   const { id: gameId } = useParams();
-  const [game, setGame] = useState(null);
+  const [initialGame, setInitialGame] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const { getSpectatorToken } = useGameContext();
@@ -93,9 +94,20 @@ export default function WatchGamePage() {
 
   // Don't open a WebSocket for finished games
   const effectiveSpectatorToken =
-    game?.status === "FINISHED" ? null : spectatorToken;
+    initialGame?.status === "FINISHED" ? null : spectatorToken;
   const { connected, gameState } = useGameSocket(gameId, effectiveSpectatorToken);
-  const displayGame = gameState ?? game;
+
+  // Merge: WebSocket drives board/turn, but player/spectator data from initial load
+  // is preserved when the WS payload omits those fields
+  const displayGame = gameState
+    ? {
+        ...initialGame,
+        ...gameState,
+        turing_player: gameState.turing_player || initialGame?.turing_player,
+        lovelace_player: gameState.lovelace_player || initialGame?.lovelace_player,
+        spectators: gameState.spectators || initialGame?.spectators || [],
+      }
+    : initialGame;
 
   async function fetchGame() {
     try {
@@ -103,7 +115,7 @@ export default function WatchGamePage() {
       setLoading(true);
       const data = await getGame(gameId);
       console.log("Dados da partida:", data);
-      setGame(data);
+      setInitialGame(data);
     } catch (err) {
       console.error("Erro ao carregar partida:", err.status, err.body);
       if (err.status === 401) setError("Token inválido ou expirado.");
@@ -148,7 +160,7 @@ export default function WatchGamePage() {
       </div>
     );
 
-  if (game?.status === "FINISHED") return <FinishedGameView game={game} />;
+  if (initialGame?.status === "FINISHED") return <FinishedGameView game={initialGame} />;
 
   if (!spectatorToken)
     return <SpectatorRegisterForm gameId={gameId} onSuccess={() => {}} />;
@@ -170,6 +182,81 @@ export default function WatchGamePage() {
           )}
 
           <GameInfo game={displayGame} />
+
+          {/* Confronto de jogadores */}
+          <div className="grid grid-cols-[1fr_auto_1fr] gap-4 items-center bg-white rounded-lg shadow p-4 mb-4">
+            <div className="text-center">
+              {displayGame.turing_player ? (
+                <>
+                  <PlayerAvatar
+                    src={displayGame.turing_player.ai_player_avatar}
+                    name={displayGame.turing_player.ai_player_name}
+                    size="md"
+                  />
+                  <div className="font-bold text-blue-600 text-sm mt-1">
+                    {displayGame.turing_player.ai_player_name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {displayGame.turing_player.group_name}
+                  </div>
+                </>
+              ) : (
+                <div className="text-gray-400 italic text-sm">Aguardando jogador...</div>
+              )}
+              <div className="text-xs font-bold text-blue-600 mt-1">ALIANÇA TURING</div>
+            </div>
+
+            <div className="text-xl font-bold text-gray-400">VS</div>
+
+            <div className="text-center">
+              {displayGame.lovelace_player ? (
+                <>
+                  <PlayerAvatar
+                    src={displayGame.lovelace_player.ai_player_avatar}
+                    name={displayGame.lovelace_player.ai_player_name}
+                    size="md"
+                  />
+                  <div className="font-bold text-rose-600 text-sm mt-1">
+                    {displayGame.lovelace_player.ai_player_name}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {displayGame.lovelace_player.group_name}
+                  </div>
+                </>
+              ) : (
+                <div className="text-gray-400 italic text-sm">Aguardando jogador...</div>
+              )}
+              <div className="text-xs font-bold text-rose-600 mt-1">LOVELACE</div>
+            </div>
+          </div>
+
+          {/* Espectadores */}
+          {displayGame.spectators && displayGame.spectators.length > 0 && (
+            <div className="bg-white rounded-lg shadow p-3 mb-4">
+              <div className="text-xs font-bold text-gray-500 uppercase mb-2">
+                👁️ Espectadores ({displayGame.spectators.length})
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {displayGame.spectators.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center gap-2 bg-gray-100 px-3 py-1 rounded-full text-sm"
+                  >
+                    {s.spectator_avatar ? (
+                      <img
+                        src={s.spectator_avatar}
+                        className="w-5 h-5 rounded-full object-cover"
+                        onError={(e) => { e.target.style.display = "none"; }}
+                      />
+                    ) : (
+                      <span>👤</span>
+                    )}
+                    <span className="text-gray-700">{s.spectator_name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
             <div className="flex items-center gap-4 mb-4 text-xs font-medium text-gray-500">

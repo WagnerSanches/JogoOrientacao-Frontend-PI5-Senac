@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { Cell } from "@/components/cell.jsx";
+import { PlayerAvatar } from "@/components/player-avatar.jsx";
 
 function WinnerBanner({ winnerTeam }) {
   if (!winnerTeam) {
@@ -40,20 +41,11 @@ function PlayerCard({ player, teamName, teamColor, isWinner }) {
 
   return (
     <div className={`rounded-xl p-4 text-center ${cardClass}`}>
-      {player?.ai_player_avatar ? (
-        <img
-          src={player.ai_player_avatar}
-          alt={player.ai_player_name}
-          className="w-20 h-20 rounded-full mx-auto object-cover border-2 border-white shadow"
-          onError={(e) => {
-            e.target.style.display = "none";
-          }}
-        />
-      ) : (
-        <div className="w-20 h-20 rounded-full mx-auto bg-gray-200 flex items-center justify-center text-3xl">
-          🤖
-        </div>
-      )}
+      <PlayerAvatar
+        src={player?.ai_player_avatar}
+        name={player?.ai_player_name}
+        size="lg"
+      />
       <p className="mt-3 font-bold text-gray-900 text-sm">
         {player?.ai_player_name || "Sem jogador"}
       </p>
@@ -161,7 +153,7 @@ export function FinishedGameView({ game }) {
 
       {/* Estatísticas */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Turnos" value={game.turn_number ?? "—"} />
+        <StatCard label="Turnos" value={game.current_turn_number ?? "—"} />
         <StatCard label="Duração" value={duration} />
         <StatCard label="Início" value={formatDateTime(game.started_at)} />
         <StatCard label="Fim" value={formatDateTime(game.finished_at)} />

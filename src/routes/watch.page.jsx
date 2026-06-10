@@ -34,8 +34,12 @@ function StatusBadge({ status }) {
   );
 }
 
-function GameCard({ game }) {
+function GameCard({ game, player }) {
   const shortId = game.id?.slice(0, 8) ?? "—";
+  const canJoin =
+    game.status === "WAITING_PLAYERS" &&
+    player?.id &&
+    player.id !== game.created_by;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -51,12 +55,22 @@ function GameCard({ game }) {
             Lovelace
           </p>
         </div>
-        <Link
-          to={`/watch/${game.id}`}
-          className="shrink-0 text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors"
-        >
-          {game.status === "FINISHED" ? "Ver Detalhes" : "Assistir"} →
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          {canJoin && (
+            <Link
+              to={`/games/${game.id}/join`}
+              className="text-sm font-semibold text-white bg-green-600 hover:bg-green-700 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Entrar como Jogador
+            </Link>
+          )}
+          <Link
+            to={`/watch/${game.id}`}
+            className="text-sm font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+          >
+            {game.status === "FINISHED" ? "Ver Detalhes" : "Assistir"} →
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -176,7 +190,7 @@ export default function WatchPage() {
       {!loading && !error && games.length > 0 && (
         <div className="flex flex-col gap-3">
           {games.map((game) => (
-            <GameCard key={game.id} game={game} />
+            <GameCard key={game.id} game={game} player={player} />
           ))}
         </div>
       )}

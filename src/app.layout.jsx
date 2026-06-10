@@ -1,5 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useGameContext } from "@/context/game-context.jsx";
+import { clearSpectatorProfile, getSpectatorProfile } from "@/components/spectator-register-form.jsx";
 
 export default function AppLayout() {
   const navigate = useNavigate();
@@ -10,6 +11,13 @@ export default function AppLayout() {
     logout();
     navigate("/", { replace: true });
   }
+
+  function handleClearSpectatorProfile() {
+    clearSpectatorProfile();
+    alert("Perfil de espectador removido. Será pedido o nome novamente.");
+  }
+
+  const spectatorProfile = getSpectatorProfile();
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
@@ -33,6 +41,15 @@ export default function AppLayout() {
             </NavLink>
             {playerName && (
               <span className="text-sm text-gray-500 hidden sm:block">{playerName}</span>
+            )}
+            {spectatorProfile?.name && (
+              <button
+                onClick={handleClearSpectatorProfile}
+                title={`Espectador: ${spectatorProfile.name}`}
+                className="px-3 py-1.5 rounded-md text-sm font-medium text-gray-500 hover:text-gray-900 hover:bg-gray-50 transition-colors hidden sm:block"
+              >
+                👁️ {spectatorProfile.name}
+              </button>
             )}
             <button
               onClick={handleLogout}
