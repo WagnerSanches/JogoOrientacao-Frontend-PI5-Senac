@@ -17,6 +17,13 @@ export function useGameSocket(gameId, spectatorToken) {
     if (!gameId || !spectatorToken) return;
 
     function connect() {
+      if (!API_BASE_URL) {
+        console.error(
+          "[useGameSocket] VITE_API_BASE_URL não está configurada. " +
+          "Verifique o arquivo .env na raiz do projeto."
+        );
+        return;
+      }
       const url = new URL(`api/v1/ws/games/${gameId}`, API_BASE_URL);
       url.searchParams.set("token", spectatorToken);
       const socketUrl = resolveWebSocketURL(url.toString());

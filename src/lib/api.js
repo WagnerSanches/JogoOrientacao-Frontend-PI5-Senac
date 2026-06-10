@@ -1,5 +1,13 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+if (!API_BASE_URL) {
+  throw new Error(
+    "[api.js] VITE_API_BASE_URL não está configurada. " +
+    "Crie o arquivo .env na raiz do projeto com: VITE_API_BASE_URL=https://...\n" +
+    "Atenção: no PowerShell, use Set-Content ao invés de '>' para evitar UTF-16."
+  );
+}
+
 function getAccessToken() {
   try {
     const player = JSON.parse(localStorage.getItem("player") || "null");

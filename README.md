@@ -28,9 +28,17 @@ acompanhar partidas do **Jogo da Orientação** em tempo real.
 # Instalar dependências
 npm install
 
-# Criar arquivo .env na raiz com a URL da API
-echo "VITE_API_BASE_URL=https://pi5-api-production.up.railway.app" > .env
+# Criar arquivo .env a partir do exemplo (obrigatório antes de rodar)
+cp .env.example .env
+# Edite o .env se precisar apontar para outra URL de API
+```
 
+> **Atenção (Windows/PowerShell):** não use `echo ... > .env` no PowerShell —
+> ele gera UTF-16 LE, que o Vite não consegue ler e a aplicação quebra com
+> `Failed to construct 'URL': Invalid URL`. Use `cp .env.example .env` ou edite
+> o arquivo diretamente no editor.
+
+```bash
 # Rodar em modo desenvolvimento
 npm run dev
 ```
@@ -118,9 +126,15 @@ reconexão automática em caso de queda.
 
 ## Variáveis de ambiente
 
-| Variável | Descrição |
-|---|---|
-| `VITE_API_BASE_URL` | URL base da API do professor |
+Copie `.env.example` para `.env` e ajuste os valores conforme necessário.
+
+| Variável | Obrigatória | Descrição |
+|---|---|---|
+| `VITE_API_BASE_URL` | Sim | URL base da API backend (ex: `https://pi5-api-production.up.railway.app`) |
+
+> O arquivo `.env` deve estar em **UTF-8** (sem BOM). No PowerShell, prefira
+> `cp .env.example .env` — o operador `>` cria arquivos UTF-16 LE que o Vite
+> não consegue ler.
 
 ---
 
