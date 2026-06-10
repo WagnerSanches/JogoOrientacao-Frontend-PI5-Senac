@@ -24,7 +24,7 @@ export function clearSpectatorProfile() {
 }
 
 export function SpectatorRegisterForm({ gameId, onSuccess }) {
-  const { setSpectatorForGame } = useGameContext();
+  const { setSpectatorForGame, getSpectatorToken } = useGameContext();
   const [apiError, setApiError] = useState(null);
   const [autoRegFailed, setAutoRegFailed] = useState(false);
 
@@ -43,10 +43,16 @@ export function SpectatorRegisterForm({ gameId, onSuccess }) {
   });
 
   useEffect(() => {
-    if (savedProfile?.name) {
-      handleAutoRegister(savedProfile.name, savedProfile.avatar);
+    const existingToken = getSpectatorToken(gameId);
+    if (existingToken) {
+      onSuccess?.();
+      return;
     }
-  }, []);
+    const profile = getSpectatorProfile();
+    if (profile?.name) {
+      handleAutoRegister(profile.name, profile.avatar);
+    }
+  }, [gameId]);
 
   async function handleAutoRegister(name, avatar) {
     try {

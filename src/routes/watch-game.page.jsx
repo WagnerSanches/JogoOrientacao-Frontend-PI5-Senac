@@ -6,7 +6,7 @@ import { FinishedGameView } from "@/components/finished-game-view.jsx";
 import { Cell } from "@/components/cell.jsx";
 import { PlayerAvatar } from "@/components/player-avatar.jsx";
 import { useGameContext } from "@/context/game-context.jsx";
-import { getGame } from "@/lib/games-api.js";
+import { getGame, startGame } from "@/lib/games-api.js";
 
 const STATUS_LABELS = {
   WAITING_PLAYERS: "Aguardando Jogadores",
@@ -89,7 +89,8 @@ export default function WatchGamePage() {
   const [initialGame, setInitialGame] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { getSpectatorToken } = useGameContext();
+  const [starting, setStarting] = useState(false);
+  const { getSpectatorToken, player } = useGameContext();
   const spectatorToken = getSpectatorToken(gameId);
 
   // Don't open a WebSocket for finished games
@@ -123,6 +124,20 @@ export default function WatchGamePage() {
       else setError(err.message ?? "Erro ao carregar a partida.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleStart() {
+    setStarting(true);
+    try {
+      await startGame(gameId);
+      const updated = await getGame(gameId);
+      setInitialGame(updated);
+    } catch (err) {
+      console.error("Erro ao iniciar:", err);
+      alert(err.body?.detail || "Erro ao iniciar a partida");
+    } finally {
+      setStarting(false);
     }
   }
 
@@ -164,6 +179,14 @@ export default function WatchGamePage() {
 
   if (!spectatorToken)
     return <SpectatorRegisterForm gameId={gameId} onSuccess={() => {}} />;
+
+  const canStart =
+    displayGame?.status !== "PLAYING" &&
+    displayGame?.status !== "FINISHED" &&
+    !!player?.id &&
+    (displayGame?.created_by === player.id ||
+      displayGame?.turing_player?.player_id === player.id ||
+      displayGame?.lovelace_player?.player_id === player.id);
 
   return (
     <div className="max-w-2xl mx-auto px-6 py-10">
@@ -256,6 +279,16 @@ export default function WatchGamePage() {
                 ))}
               </div>
             </div>
+          )}
+
+          {canStart && (
+            <button
+              onClick={handleStart}
+              disabled={starting}
+              className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white px-6 py-3 rounded-lg font-medium mb-4 transition-colors"
+            >
+              {starting ? "Iniciando..." : "▶ Iniciar Partida"}
+            </button>
           )}
 
           <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
