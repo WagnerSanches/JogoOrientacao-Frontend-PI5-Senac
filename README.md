@@ -54,36 +54,6 @@ npm run preview
 
 ---
 
-## Estrutura do projeto
-
-```
-src/
-├── routes/                  # Páginas da aplicação
-│   ├── auth.page.jsx        # Cadastro/login do jogador
-│   ├── watch.page.jsx       # Listagem de partidas
-│   ├── watch-game.page.jsx  # Visualização de uma partida
-│   ├── create-game.page.jsx # Criar nova partida
-│   └── join-game.page.jsx   # Entrar em partida aberta
-│
-├── components/              # Componentes reutilizáveis
-│   └── auth-guard.jsx       # Proteção de rotas
-│
-├── hooks/
-│   └── useGameSocket.js     # Hook de WebSocket
-│
-├── lib/
-│   ├── api.js               # Cliente HTTP central
-│   ├── games-api.js         # Endpoints da API
-│   └── schemas.js           # Validações Zod
-│
-├── context/
-│   └── game-context.jsx     # Estado global (jogador, espectadores)
-│
-├── app.jsx                  # Rotas
-├── app.layout.jsx           # Layout global
-└── main.jsx                 # Entry point
-```
-
 ## Fluxo de uso
 
 1. **Cadastro** → o usuário cadastra um novo jogador ou cola um token existente
@@ -132,9 +102,6 @@ Copie `.env.example` para `.env` e ajuste os valores conforme necessário.
 |---|---|---|
 | `VITE_API_BASE_URL` | Sim | URL base da API backend (ex: `https://pi5-api-production.up.railway.app`) |
 
-> O arquivo `.env` deve estar em **UTF-8** (sem BOM). No PowerShell, prefira
-> `cp .env.example .env` — o operador `>` cria arquivos UTF-16 LE que o Vite
-> não consegue ler.
 
 ---
 
@@ -143,9 +110,3 @@ Copie `.env.example` para `.env` e ajuste os valores conforme necessário.
 - A aplicação roda 100% no navegador (SPA)
 - Estado do jogador e espectadores é persistido no `localStorage`
 - O frontend não precisa estar deployado para ser avaliado — pode rodar local
-
----
-
-## Autor
-
-Wagner Sanches — Senac, Análise e Desenvolvimento de Sistemas
